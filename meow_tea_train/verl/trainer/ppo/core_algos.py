@@ -95,6 +95,7 @@ class AdvantageEstimator(str, Enum):
     """
 
     GAE = "gae"
+    BC_GAE = "bc_gae"
     GRPO = "grpo"
     REINFORCE_PLUS_PLUS = "reinforce_plus_plus"
     REINFORCE_PLUS_PLUS_BASELINE = "reinforce_plus_plus_baseline"
@@ -257,6 +258,149 @@ def compute_gae_advantage_return(
 
         returns = advantages + values
         advantages = verl_F.masked_whiten(advantages, response_mask)
+    return advantages, returns
+
+
+# ===== BC-PPO: Bias Corrector Class =====
+class BiasCorrector:
+    """Tracks and corrects value function bias via exponential moving average of TD errors.
+    
+    This class implements the bias correction mechanism for BC-PPO, which estimates
+    and corrects systematic bias in the value function by tracking TD errors.
+    
+    Args:
+        decay (float): Decay rate for the exponential moving average. Default is 0.99.
+    """
+    def __init__(self, decay: float = 0.99):
+        self.bias_estimate = 0.0
+        self.decay = decay
+        self.update_count = 0
+    
+    def update(self, td_errors: torch.Tensor):
+        """Update bias estimate from batch of TD errors.
+        
+        Args:
+            td_errors (torch.Tensor): Tensor of TD errors from the current batch.
+        """
+        # Mean TD error estimates the bias
+        batch_bias = td_errors.mean().item()
+        
+        # Exponential moving average
+        self.bias_estimate = self.decay * self.bias_estimate + (1 - self.decay) * batch_bias
+        self.update_count += 1
+    
+    def get_bias(self) -> float:
+        """Get current bias estimate.
+        
+        Returns:
+            float: Current bias estimate value.
+        """
+        return self.bias_estimate
+
+
+# Global bias corrector instance for BC-PPO
+_global_bias_corrector = None
+
+def get_bias_corrector(decay: float = 0.99) -> BiasCorrector:
+    """Get or create the global bias corrector instance.
+    
+    Args:
+        decay (float): Decay rate for the exponential moving average. Default is 0.99.
+        
+    Returns:
+        BiasCorrector: The global bias corrector instance.
+    """
+    global _global_bias_corrector
+    if _global_bias_corrector is None:
+        _global_bias_corrector = BiasCorrector(decay=decay)
+    return _global_bias_corrector
+
+
+@register_adv_est(AdvantageEstimator.BC_GAE)  # or simply: @register_adv_est("bc_gae")
+def compute_bc_gae_advantage_return(
+    token_level_rewards: torch.Tensor,
+    values: torch.Tensor,
+    response_mask: torch.Tensor,
+    gamma: float,
+    lam: float,
+    config: Optional[AlgoConfig] = None,
+):
+    """Compute Bias-Corrected GAE advantage and returns.
+    
+    This implements the BC-PPO algorithm which corrects for systematic bias in the
+    value function by tracking TD errors and correcting them before computing GAE.
+    
+    Args:
+        token_level_rewards: `(torch.Tensor)`
+            shape is (bs, response_length)
+        values: `(torch.Tensor)`
+            shape is (bs, response_length)
+        response_mask: `(torch.Tensor)`
+            shape is (bs, response_length). [EOS] mask. The token after [EOS] have mask zero.
+        gamma: `(float)`
+            discounted factor used in RL
+        lam: `(float)`
+            lambda value when computing Generalized Advantage Estimation
+        config: `(Optional[AlgoConfig])`
+            algorithm configuration object containing bias correction settings
+
+    Returns:
+        advantages: `(torch.Tensor)`
+            shape: (bs, response_length)
+        returns: `(torch.Tensor)`
+            shape: (bs, response_length)
+    """
+    # Get bias correction parameters from config
+    bias_correction = config.get("bias_correction", True) if config is not None else True
+    bias_decay = config.get("bias_decay", 0.99) if config is not None else 0.99
+    
+    # Get or create bias corrector
+    bias_corrector = get_bias_corrector(decay=bias_decay)
+    
+    with torch.no_grad():
+        nextvalues = 0
+        lastgaelam = 0
+        advantages_reversed = []
+        td_errors_list = []
+        gen_len = token_level_rewards.shape[-1]
+
+        for t in reversed(range(gen_len)):
+            # Standard TD error
+            delta = token_level_rewards[:, t] + gamma * nextvalues - values[:, t]
+            
+            # Store TD errors for bias estimation (only for response tokens)
+            masked_delta = delta * response_mask[:, t]
+            if response_mask[:, t].sum() > 0:  # Only store if there are valid tokens
+                td_errors_list.append(masked_delta)
+            
+            # ===== BC-PPO: Correct for bias =====
+            if bias_correction:
+                delta_corrected = delta - bias_corrector.get_bias()
+            else:
+                delta_corrected = delta
+            
+            # GAE with bias-corrected TD errors
+            lastgaelam_ = delta_corrected + gamma * lam * lastgaelam
+
+            # skip values and TD-error on observation tokens
+            nextvalues = values[:, t] * response_mask[:, t] + (1 - response_mask[:, t]) * nextvalues
+            lastgaelam = lastgaelam_ * response_mask[:, t] + (1 - response_mask[:, t]) * lastgaelam
+
+            advantages_reversed.append(lastgaelam)
+        
+        advantages = torch.stack(advantages_reversed[::-1], dim=1)
+        returns = advantages + values
+        advantages = verl_F.masked_whiten(advantages, response_mask)
+        
+        # ===== BC-PPO: Update bias estimate =====
+        if bias_correction and len(td_errors_list) > 0:
+            # Flatten all TD errors and compute only over valid (masked) tokens
+            all_td_errors = torch.cat([td.flatten() for td in td_errors_list])
+            # Only use non-zero TD errors (valid response tokens)
+            valid_td_errors = all_td_errors[all_td_errors != 0]
+            if len(valid_td_errors) > 0:
+                bias_corrector.update(valid_td_errors)
+    
     return advantages, returns
 
 

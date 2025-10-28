@@ -227,6 +227,24 @@ def compute_advantage(
                 config.pf_ppo.get("reweight_method"),
                 config.pf_ppo.get("weight_pow"),
             )
+    elif adv_estimator == AdvantageEstimator.BC_GAE:
+        # Compute advantages and returns using Bias-Corrected GAE (BC-PPO)
+        advantages, returns = core_algos.compute_bc_gae_advantage_return(
+            token_level_rewards=data.batch["token_level_rewards"],
+            values=data.batch["values"],
+            response_mask=data.batch["response_mask"],
+            gamma=gamma,
+            lam=lam,
+            config=config,
+        )
+        data.batch["advantages"] = advantages
+        data.batch["returns"] = returns
+        if config.get("use_pf_ppo", False):
+            data = core_algos.compute_pf_ppo_reweight_data(
+                data,
+                config.pf_ppo.get("reweight_method"),
+                config.pf_ppo.get("weight_pow"),
+            )
     elif adv_estimator == AdvantageEstimator.GRPO:
         # Initialize the mask for GRPO calculation
         grpo_calculation_mask = data.batch["response_mask"]
