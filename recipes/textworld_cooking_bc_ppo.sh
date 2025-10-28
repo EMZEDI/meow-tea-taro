@@ -7,16 +7,17 @@ export HYDRA_FULL_ERROR=1
 # instead of standard PPO by using the bc_ppo_trainer configuration.
 
 # DATA/TASK CONFIG
+scratch_dir="$SCRATCH"
 env_name="textworld"
 task_prefix="tw_dense"
 instance_id_start=50001
 instance_id_end=53000
 hf_data_repo="PEARLS-Lab/meow-tea-taro-dataset"
-hf_instances_dir="$env_name/$task_prefix/instances"
-hf_train_data_dir="$env_name/$task_prefix/multiturn_rl_data/3000_train_data"
-local_instances_dir="local/$hf_instances_dir"
-local_train_data_dir="local/$hf_train_data_dir"
-local_parquet_dir="local/train_parquet"
+hf_instances_dir="$scratch_dir/$env_name/$task_prefix/instances"
+hf_train_data_dir="$scratch_dir/$env_name/$task_prefix/multiturn_rl_data/3000_train_data"
+local_instances_dir="$scratch_dir/local/$hf_instances_dir"
+local_train_data_dir="$scratch_dir/local/$hf_train_data_dir"
+local_parquet_dir="$scratch_dir/local/train_parquet"
 reward_method="dense"
 
 # MODEL CONFIG
@@ -24,8 +25,8 @@ hf_actor_repo_id=""
 hf_actor_model_path=""
 hf_critic_repo_id=""
 hf_critic_model_path=""
-actor_model_path=local/model/actor
-critic_model_path=local/model/critic
+actor_model_path="$scratch_dir/local/model/actor"
+critic_model_path="$scratch_dir/local/model/critic"
 base_model="Qwen/Qwen2.5-7B-Instruct"
 
 # AGENTIC CONFIG
@@ -67,13 +68,13 @@ critic_lr=5e-6
 critic_update_epochs=1
 
 # LOGGING CONFIG
-project_name="verl_bc_ppo_examples"
-experiment_name="bc_ppo_textworld_cooking"
+project_name="${env_name}_${task_prefix}_${reward_method}_${adv_estimator}" # TODO (optional). WandB project name.
+experiment_name="${env_name}_${task_prefix}_${reward_method}_${adv_estimator}_kl${kl_coef}_actor${actor_lr}_critic${critic_lr}_bs${train_batch_size}_ep${num_epochs}_seed${instance_id_start}" # TODO (optional). WandB experiment name.
 logger="console,wandb"
 
 # HARDWARE CONFIG
 nnodes=1
-n_gpus_per_node=8
+n_gpus_per_node=4
 colocate_critic_reward=True
 colocate_actor_ref=True
 

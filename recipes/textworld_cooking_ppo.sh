@@ -2,16 +2,17 @@ set -x
 export HYDRA_FULL_ERROR=1
 
 # DATA/TASK CONFIG
+scratch_dir="$SCRATCH"
 env_name="textworld"
 task_prefix="tw_dense"
 instance_id_start=50001
 instance_id_end=53000
 hf_data_repo="PEARLS-Lab/meow-tea-taro-dataset"
-hf_instances_dir="$env_name/$task_prefix/instances"
-hf_train_data_dir="$env_name/$task_prefix/multiturn_rl_data/3000_train_data"
-local_instances_dir="local/$hf_instances_dir"
-local_train_data_dir="local/$hf_train_data_dir"
-local_parquet_dir="local/train_parquet"
+hf_instances_dir="$scratch_dir/$env_name/$task_prefix/instances"
+hf_train_data_dir="$scratch_dir/$env_name/$task_prefix/multiturn_rl_data/3000_train_data"
+local_instances_dir="$scratch_dir/local/$hf_instances_dir"
+local_train_data_dir="$scratch_dir/local/$hf_train_data_dir"
+local_parquet_dir="$scratch_dir/local/train_parquet"
 reward_method="dense"
 
 # MODEL CONFIG
@@ -19,8 +20,8 @@ hf_actor_repo_id=""
 hf_actor_model_path=""
 hf_critic_repo_id=""
 hf_critic_model_path=""
-actor_model_path=local/model/actor
-critic_model_path=local/model/critic
+actor_model_path="$scratch_dir/local/model/actor"
+critic_model_path="$scratch_dir/local/model/critic"
 base_model="Qwen/Qwen2.5-7B-Instruct"
 
 # AGENTIC CONFIG
@@ -60,9 +61,9 @@ save_freq=40 # per steps
 test_freq=5 # per steps
 
 # PROJECT CONFIG
-project_name="" # TODO (optional). WandB project name.
-experiment_name="" # TODO (optional). WandB experiment name.
-save_hf_repo_id="your-hf-repo-id" # TODO (optional). HF repo id to save the trained model. If empty, do not save.
+project_name="${env_name}_${task_prefix}_${reward_method}_${adv_estimator}" # TODO (optional). WandB project name.
+experiment_name="${env_name}_${task_prefix}_${reward_method}_${adv_estimator}_kl${kl_coef}_actor${actor_lr}_critic${critic_lr}_bs${train_batch_size}_ep${num_epochs}_seed${instance_id_start}" # TODO (optional). WandB experiment name.
+save_hf_repo_id="" # TODO (optional). HF repo id to save the trained model. If empty, do not save.
 resume_wandb_logs=True # TODO (optional, default=True). Whether to resume WandB logs if "experiment_name" exists.
 
 
@@ -172,7 +173,7 @@ python3 -m meow_tea_train.verl.trainer.main_ppo \
     trainer.experiment_name=$experiment_name \
     trainer.validation_data_dir="local/val_results" \
     trainer.nnodes=$nnodes \
-    trainer.n_gpus_per_node=8 \
+    trainer.n_gpus_per_node=4 \
     trainer.val_before_train=True \
     trainer.hf_kwargs.save_hf_repo_id=$save_hf_repo_id \
     trainer.hf_kwargs.resume_wandb_logs=$resume_wandb_logs \
