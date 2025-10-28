@@ -22,31 +22,40 @@ classifiers = [
 ]
 
 dependencies = [
+    "torch==2.6.0",
+    "vllm==0.8.4",
+    "flashinfer-python==0.2.2",
+    "transformers>=4.54.0",
+    "accelerate>=0.30.0",
+    "peft>=0.10.0",
+    "datasets>=2.18.0",
+    "pyarrow>=15.0.0",
+    "ray[data,train,tune,serve]>=2.10.0",
+    "tensordict<0.6",
+    "wandb>=0.16.0",
+    "tensorboard>=2.16.0",
     "textworld",
     "alfworld",
-    "swe-rex"
+    "swe-rex",
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    # Testing
     "pytest>=6.0",
     "pytest-cov>=4.0",
-    
-    # Code quality
     "black>=22.0",
     "isort>=5.0",
     "flake8>=4.0",
-    
-    # Documentation
     "sphinx>=7.0",
     "sphinx-rtd-theme>=2.0",
     "sphinx-autodoc-typehints>=1.25",
-    "myst-parser>=2.0",  # Optional: if you want Markdown support
-    
-    # Other dev tools
+    "myst-parser>=2.0",
     "ipython>=8.0",
+    "jupyterlab>=4.2.0",
     "pre-commit>=3.0",
+    "flash-attn @ https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.1.0/flash_attn-2.7.4+cu128torch2.7-cp310-cp310-linux_x86_64.whl"
 ]
 
 [project.urls]
@@ -56,7 +65,6 @@ Issues = "https://github.com/ruiyiw/meow-tea-taro/issues"
 
 [project.scripts]
 meow-tea-train = "meow_tea_train.cli:train_command"
-
 
 [tool.setuptools]
 packages = ["meow_tea_train", "meow_tea_train.verl", "verl", "meow_tea_experiments"]
@@ -69,7 +77,7 @@ packages = ["meow_tea_train", "meow_tea_train.verl", "verl", "meow_tea_experimen
 
 [tool.black]
 line-length = 120
-target-version = ['py38']
+target-version = ['py310']
 
 [tool.isort]
 profile = "black"
