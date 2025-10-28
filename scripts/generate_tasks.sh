@@ -3,12 +3,12 @@
 # Config variables
 ENV_NAME="textworld" # Options: alfworld, textworld
 TASK_PREFIX="tw_dense" # Prefix for task files
-TASKS_DIR="/root/data/tasks/$ENV_NAME/$TASK_PREFIX"
+TASKS_DIR="$SCRATCH/tasks/$ENV_NAME/$TASK_PREFIX"
 mkdir -p $TASKS_DIR
 
 # Textworld tasks settings
 TW_BASE_SEED=10000
-TW_TASKS_COUNT=10
+TW_TASKS_COUNT=3000
 # If using basic tasks
 TW_BASIC_WORLD_SIZE=2
 TW_BASIC_NB_OBJECTS=3
