@@ -2,7 +2,10 @@ set -x
 export HYDRA_FULL_ERROR=1
 
 # DATA/TASK CONFIG
-scratch_dir="$SCRATCH"
+scratch_dir="$SCRATCH/.cache/huggingface/meow_tea_train"
+export HF_HOME="$scratch_dir"
+export HF_HUB_CACHE="$scratch_dir"
+export HF_DATASETS_CACHE="$scratch_dir"
 env_name="textworld"
 task_prefix="tw_dense"
 instance_id_start=50001
@@ -121,7 +124,7 @@ fi
 
 # Step 3: Run training
 echo "Starting RL training..."
-
+source .venv/bin/activate
 python3 -m meow_tea_train.verl.trainer.main_ppo \
     data.train_files="$local_parquet_dir/train.parquet" \
     data.val_files="$local_parquet_dir/validation.parquet" \
@@ -129,6 +132,7 @@ python3 -m meow_tea_train.verl.trainer.main_ppo \
     data.max_prompt_length=$max_prompt_length \
     data.max_response_length=$max_response_length \
     data.train_batch_size=$train_batch_size \
+    data.dataloader_num_workers=16 \
     algorithm.adv_estimator=$adv_estimator \
     algorithm.gamma=$gamma \
     algorithm.use_kl_in_reward=$use_kl_in_reward \
@@ -143,6 +147,8 @@ python3 -m meow_tea_train.verl.trainer.main_ppo \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.model.enable_gradient_checkpointing=True \
     actor_rollout_ref.model.use_fused_kernels=False \
+    actor_rollout_ref.rollout.dtype=bfloat16 \
+    actor_rollout_ref.actor.fsdp_config.model_dtype=bfloat16 \
     actor_rollout_ref.actor.use_torch_compile=True \
     actor_rollout_ref.actor.ppo_mini_batch_size=$ppo_mini_batch_size \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=32 \

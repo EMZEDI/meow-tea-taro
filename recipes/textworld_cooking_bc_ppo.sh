@@ -7,7 +7,10 @@ export HYDRA_FULL_ERROR=1
 # instead of standard PPO by using the bc_ppo_trainer configuration.
 
 # DATA/TASK CONFIG
-scratch_dir="$SCRATCH"
+scratch_dir="$SCRATCH/.cache/huggingface/meow_tea_train"
+export HF_HOME="$scratch_dir"
+export HF_HUB_CACHE="$scratch_dir"
+export HF_DATASETS_CACHE="$scratch_dir"
 env_name="textworld"
 task_prefix="tw_dense"
 instance_id_start=50001
@@ -74,7 +77,7 @@ logger="['console','wandb']"
 
 # HARDWARE CONFIG
 nnodes=1
-n_gpus_per_node=4
+n_gpus_per_node=1
 colocate_critic_reward=True
 colocate_actor_ref=True
 
@@ -137,58 +140,70 @@ echo "Starting BC-PPO training..."
 
 # Note: We use main_bc_ppo.py instead of main_ppo.py
 # This automatically loads bc_ppo_trainer.yaml configuration
+source .venv/bin/activate
 python3 -m meow_tea_train.verl.trainer.main_bc_ppo \
-    actor_rollout_ref.model.path=$actor_model_path \
-    critic.model.path=$critic_model_path \
-    data.train_files=$local_train_data_dir \
-    data.val_files=$local_train_data_dir \
+    data.train_files="$local_parquet_dir/train.parquet" \
+    data.val_files="$local_parquet_dir/validation.parquet" \
+    data.return_raw_chat=True \
+    data.max_prompt_length=$max_prompt_length \
+    data.max_response_length=$max_response_length \
+    data.train_batch_size=$train_batch_size \
+    data.dataloader_num_workers=16 \
     algorithm.adv_estimator=$adv_estimator \
-    algorithm.gamma=$gamma \
     algorithm.bias_correction=$bias_correction \
     algorithm.bias_decay=$bias_decay \
+    algorithm.gamma=$gamma \
     algorithm.use_kl_in_reward=$use_kl_in_reward \
     algorithm.kl_ctrl.kl_coef=$kl_coef \
+    agentic.environment.name=$env_name \
+    agentic.environment.is_multiturn=$is_multiturn \
+    agentic.environment.is_async=$is_async \
+    agentic.environment.max_iter=$max_iter \
+    agentic.reward.density=$reward_density \
+    agentic.reward.type=$reward_type \
+    actor_rollout_ref.model.path=$actor_model_path \
+    actor_rollout_ref.model.use_remove_padding=True \
+    actor_rollout_ref.model.enable_gradient_checkpointing=True \
+    actor_rollout_ref.model.use_fused_kernels=False \
+    actor_rollout_ref.rollout.dtype=bfloat16 \
+    actor_rollout_ref.actor.fsdp_config.model_dtype=bfloat16 \
+    actor_rollout_ref.actor.use_torch_compile=True \
     actor_rollout_ref.actor.ppo_mini_batch_size=$ppo_mini_batch_size \
-    actor_rollout_ref.actor.ppo_micro_batch_size=$ppo_mini_batch_size \
-    actor_rollout_ref.actor.optim.lr=1e-6 \
-    actor_rollout_ref.actor.ppo_kwargs.clip_ratio=$clip_ratio \
+    actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=32 \
+    actor_rollout_ref.actor.use_dynamic_bsz=True \
+    actor_rollout_ref.actor.entropy_coeff=0.0 \
     actor_rollout_ref.actor.use_kl_loss=$use_kl_loss \
+    actor_rollout_ref.actor.optim.lr=$actor_lr \
+    actor_rollout_ref.actor.clip_ratio=$clip_ratio \
     actor_rollout_ref.rollout.name=$rollout_name \
     actor_rollout_ref.rollout.mode=$rollout_mode \
+    +actor_rollout_ref.rollout.agentic='${agentic}' \
     actor_rollout_ref.rollout.temperature=$rollout_temp \
-    actor_rollout_ref.rollout.log_prob_micro_batch_size=$ppo_mini_batch_size \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
-    actor_rollout_ref.rollout.gpu_memory_utilization=0.4 \
-    actor_rollout_ref.rollout.batch_size=$rollout_batch_size_per_device \
+    actor_rollout_ref.rollout.gpu_memory_utilization=$gpu_memory_utilization \
+    actor_rollout_ref.rollout.n=1 \
+    actor_rollout_ref.rollout.max_num_batched_tokens=$max_num_batched_tokens \
+    actor_rollout_ref.rollout.val_kwargs.temperature=$val_rollout_temp \
     critic.optim.lr=$critic_lr \
-    critic.ppo_micro_batch_size=$ppo_mini_batch_size \
-    critic.model.enable_gradient_checkpointing=False \
-    critic.ppo_kwargs.num_epochs=$critic_update_epochs \
-    reward_model.enable=False \
+    critic.model.path=$critic_model_path \
+    critic.model.use_remove_padding=True \
+    critic.model.enable_gradient_checkpointing=True \
+    critic.ppo_micro_batch_size_per_gpu=32 \
+    critic.use_dynamic_bsz=True \
     reward_model.reward_manager=$reward_manager \
-    trainer.critic_warmup=$critic_warmup \
-    trainer.logger=$logger \
+    trainer.critic_warmup=0 \
+    trainer.logger=['console','wandb'] \
     trainer.project_name=$project_name \
     trainer.experiment_name=$experiment_name \
-    trainer.n_gpus_per_node=$n_gpus_per_node \
+    trainer.validation_data_dir="local/val_results" \
     trainer.nnodes=$nnodes \
-    trainer.total_epochs=$max_epochs \
+    trainer.n_gpus_per_node=$n_gpus_per_node \
+    trainer.val_before_train=True \
+    trainer.hf_kwargs.save_hf_repo_id=$save_hf_repo_id \
+    trainer.hf_kwargs.resume_wandb_logs=$resume_wandb_logs \
+    trainer.resume_mode=auto \
     trainer.save_freq=$save_freq \
-    trainer.test_freq=1 \
-    trainer.val_before_train=$val_before_train \
-    data.train_batch_size=$train_batch_size \
-    data.val_batch_size=$train_batch_size \
-    data.max_prompt_length=512 \
-    data.max_response_length=2048 \
-    agentic.enable=$is_multiturn \
-    agentic.environment=$env_name \
-    agentic.max_iter=$max_iter \
-    agentic.instance_id_start=$instance_id_start \
-    agentic.instance_id_end=$instance_id_end \
-    agentic.local_instances_dir=$local_instances_dir \
-    agentic.reward_density=$reward_density \
-    agentic.reward_type=$reward_type \
-    agentic.rollout_temp=$rollout_temp \
-    agentic.val_rollout_temp=$val_rollout_temp
+    trainer.test_freq=$test_freq \
+    trainer.total_epochs=$num_epochs $@
 
 echo "BC-PPO training completed!"

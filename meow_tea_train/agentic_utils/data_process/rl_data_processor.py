@@ -41,6 +41,7 @@ def download_from_hf(repo_id, local_dir, hf_target_folder, repo_type):
 def extract_instances_files(instances_dir):
     """Extract all tar.gz files in the instances directory."""
     print(f"Looking for tar files in: {instances_dir}")
+    print(f"Contents: {os.listdir(instances_dir)}")
     
     # List all tar.gz files
     tar_files = glob.glob(os.path.join(instances_dir, "*.tar.gz"))
@@ -63,6 +64,7 @@ def extract_instances_files(instances_dir):
 def process_rl_data(env_name, dataset_id, instances_dir, data_dir, local_dir, reward_method):
     """Process RL training data and save as parquet files."""
     print(f"Processing RL data for {env_name}...")
+    print(f"Contents of data_dir: {os.listdir(data_dir)}")
 
     # Load datasets
     datasets = {}
@@ -108,10 +110,36 @@ def main():
     
     # Create dataset ID
     dataset_id = f"{args.task_prefix}_{args.instance_id_range[0]}-{args.instance_id_range[1]}"
+
+    os.makedirs(os.path.dirname(args.local_instances_dir), exist_ok=True)
+    os.makedirs(os.path.dirname(args.local_train_data_dir), exist_ok=True)
     
     # Step 1: Download data
-    download_from_hf(args.hf_data_repo, "local", args.hf_instances_dir, "dataset")
-    download_from_hf(args.hf_data_repo, "local", args.hf_train_data_dir, "dataset")
+    download_from_hf(args.hf_data_repo, args.local_instances_dir, args.hf_instances_dir, "dataset")
+    src_dir = os.path.join(args.local_instances_dir, args.hf_instances_dir)
+    if os.path.exists(src_dir):
+        for item in os.listdir(src_dir):
+            item_path = os.path.join(src_dir, item)
+            if os.path.isfile(item_path):
+                shutil.move(item_path, args.local_instances_dir)
+        # Clean up extra directories
+        try:
+            shutil.rmtree(os.path.join(args.local_instances_dir, "textworld"))
+        except OSError:
+            pass
+    download_from_hf(args.hf_data_repo, args.local_train_data_dir, args.hf_train_data_dir, "dataset")
+    src_dir = os.path.join(args.local_train_data_dir, args.hf_train_data_dir)
+    if os.path.exists(src_dir):
+        for item in os.listdir(src_dir):
+            item_path = os.path.join(src_dir, item)
+            if os.path.isfile(item_path):
+                shutil.move(item_path, args.local_train_data_dir)
+        # Clean up extra directories
+        try:
+            shutil.rmtree(os.path.join(args.local_train_data_dir, "textworld"))
+        except OSError:
+            pass
+
 
     # Step 2: Extract instance files (MUST be before processing RL data)
     extract_instances_files(args.local_instances_dir)

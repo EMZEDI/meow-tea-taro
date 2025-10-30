@@ -15,6 +15,7 @@
 Note that we don't combine the main with ray_trainer as ray_trainer is used by other mpain.
 """
 
+import subprocess
 import os
 import socket
 
@@ -53,15 +54,20 @@ def run_ppo(config) -> None:
     """
     # Check if Ray is not initialized
     if not ray.is_initialized():
-        # Initialize Ray with a local cluster configuration
-        # Set environment variables in the runtime environment to control tokenizer parallelism,
-        # NCCL debug level, VLLM logging level, and allow runtime LoRA updating
-        # `num_cpus` specifies the number of CPU cores Ray can use, obtained from the configuration
+        num_cpus = int(subprocess.check_output(["nproc"]).strip())
+
         default_runtime_env = get_ppo_ray_runtime_env()
+        default_runtime_env["working_dir"] = None
         ray_init_kwargs = config.ray_kwargs.get("ray_init", {})
+        
+        # Add the number of CPUs to the Ray init arguments
+        ray_init_kwargs["num_cpus"] = num_cpus
+        
         runtime_env_kwargs = ray_init_kwargs.get("runtime_env", {})
-        runtime_env = OmegaConf.merge(default_runtime_env, runtime_env_kwargs)
-        ray_init_kwargs = OmegaConf.create({**ray_init_kwargs, "runtime_env": runtime_env})
+        runtime_env_kwargs["venv"] = os.environ.get("VIRTUAL_ENV")
+        runtime_env_kwargs["working_dir"] = None  # Disable working dir
+        runtime_env_kwargs["py_modules"] = None  # Disable module packaging
+        
         print(f"ray init kwargs: {ray_init_kwargs}")
         ray.init(**OmegaConf.to_container(ray_init_kwargs))
 
