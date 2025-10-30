@@ -132,7 +132,7 @@ python3 -m meow_tea_train.verl.trainer.main_ppo \
     data.max_prompt_length=$max_prompt_length \
     data.max_response_length=$max_response_length \
     data.train_batch_size=$train_batch_size \
-    data.dataloader_num_workers=16 \
+    data.dataloader_num_workers=4 \
     algorithm.adv_estimator=$adv_estimator \
     algorithm.gamma=$gamma \
     algorithm.use_kl_in_reward=$use_kl_in_reward \
@@ -179,7 +179,7 @@ python3 -m meow_tea_train.verl.trainer.main_ppo \
     trainer.experiment_name=$experiment_name \
     trainer.validation_data_dir="local/val_results" \
     trainer.nnodes=$nnodes \
-    trainer.n_gpus_per_node=4 \
+    trainer.n_gpus_per_node=1 \
     trainer.val_before_train=True \
     trainer.hf_kwargs.save_hf_repo_id=$save_hf_repo_id \
     trainer.hf_kwargs.resume_wandb_logs=$resume_wandb_logs \

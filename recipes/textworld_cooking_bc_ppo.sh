@@ -148,7 +148,7 @@ python3 -m meow_tea_train.verl.trainer.main_bc_ppo \
     data.max_prompt_length=$max_prompt_length \
     data.max_response_length=$max_response_length \
     data.train_batch_size=$train_batch_size \
-    data.dataloader_num_workers=16 \
+    data.dataloader_num_workers=4 \
     algorithm.adv_estimator=$adv_estimator \
     algorithm.bias_correction=$bias_correction \
     algorithm.bias_decay=$bias_decay \
