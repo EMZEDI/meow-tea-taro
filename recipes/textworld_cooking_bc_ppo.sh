@@ -70,7 +70,7 @@ critic_update_epochs=1
 # LOGGING CONFIG
 project_name="${env_name}_${task_prefix}_${reward_method}_${adv_estimator}" # TODO (optional). WandB project name.
 experiment_name="${env_name}_${task_prefix}_${reward_method}_${adv_estimator}_kl${kl_coef}_actor${actor_lr}_critic${critic_lr}_bs${train_batch_size}_ep${num_epochs}_seed${instance_id_start}" # TODO (optional). WandB experiment name.
-logger="console,wandb"
+logger="['console','wandb']"
 
 # HARDWARE CONFIG
 nnodes=1
@@ -78,42 +78,55 @@ n_gpus_per_node=4
 colocate_critic_reward=True
 colocate_actor_ref=True
 
-# ====================================================================
-# DOWNLOAD DATA
-# ====================================================================
-echo "Downloading training data from HuggingFace..."
-python3 -m huggingface_hub.commands.huggingface_cli download \
-    --repo-type dataset \
-    --local-dir $local_train_data_dir \
-    "$hf_data_repo" "$hf_train_data_dir"
+# Step 1: Process RL data
+echo "Processing multiturn RL data for tasks ${env_name}-${task_prefix} ${instance_id_start}-${instance_id_end}"
+python3 -m meow_tea_train.agentic_utils.data_process.rl_data_processor \
+    --env_name "$env_name" \
+    --task_prefix "$task_prefix" \
+    --instance_id_range "$instance_id_start" "$instance_id_end" \
+    --hf_data_repo "$hf_data_repo" \
+    --hf_instances_dir "$hf_instances_dir" \
+    --hf_train_data_dir "$hf_train_data_dir" \
+    --local_instances_dir "$local_instances_dir" \
+    --local_train_data_dir "$local_train_data_dir" \
+    --local_parquet_dir "$local_parquet_dir" \
+    --reward_method "$reward_method"
 
-echo "Downloading task instances from HuggingFace..."
-python3 -m huggingface_hub.commands.huggingface_cli download \
-    --repo-type dataset \
-    --local-dir $local_instances_dir \
-    "$hf_data_repo" "$hf_instances_dir"
-
-# ====================================================================
-# PREPARE MODEL CHECKPOINT
-# ====================================================================
-# Load from HF or local path
-if [ -n "$hf_actor_repo_id" ] && [ -n "$hf_actor_model_path" ]; then
-    echo "Downloading actor model from HuggingFace..."
-    python3 -m huggingface_hub.commands.huggingface_cli download \
-        --local-dir $actor_model_path \
-        "$hf_actor_repo_id" "$hf_actor_model_path"
+# Step 2: Load models
+echo "Loading models..."
+# Check if actor model is specified
+if [ -n "$hf_actor_repo_id" ]; then
+    # If specified, download from HF path if available
+    if [ -z "$hf_actor_model_path" ]; then
+        # Download entire repo if path is empty/None
+        hf download $hf_actor_repo_id --local-dir $actor_model_path
+    else
+        # Download specific path and flatten
+        hf download $hf_actor_repo_id --include="${hf_actor_model_path}/*" --local-dir $actor_model_path
+        mv $actor_model_path/$hf_actor_model_path/* $actor_model_path/
+        rm -rf $actor_model_path/$hf_actor_model_path
+        rm -rf $actor_model_path/.cache
+    fi
 else
-    echo "Using base model as initial actor: $base_model"
+    # Otherwise, use base model (from HF)
     actor_model_path=$base_model
 fi
 
-if [ -n "$hf_critic_repo_id" ] && [ -n "$hf_critic_model_path" ]; then
-    echo "Downloading critic model from HuggingFace..."
-    python3 -m huggingface_hub.commands.huggingface_cli download \
-        --local-dir $critic_model_path \
-        "$hf_critic_repo_id" "$hf_critic_model_path"
+# Check if critic model is specified
+if [ -n "$hf_critic_repo_id" ]; then
+    # If specified, download from HF path if available
+    if [ -z "$hf_critic_model_path" ]; then
+        # Download entire repo if path is empty/None
+        hf download $hf_critic_repo_id --local-dir $critic_model_path
+    else
+        # Download specific path and flatten
+        hf download $hf_critic_repo_id --include="${hf_critic_model_path}/*" --local-dir $critic_model_path
+        mv $critic_model_path/$hf_critic_model_path/* $critic_model_path/
+        rm -rf $critic_model_path/$hf_critic_model_path
+        rm -rf $critic_model_path/.cache
+    fi
 else
-    echo "Using base model as initial critic: $base_model"
+    # Otherwise, use base model (from HF)
     critic_model_path=$base_model
 fi
 
@@ -154,7 +167,7 @@ python3 -m meow_tea_train.verl.trainer.main_bc_ppo \
     reward_model.enable=False \
     reward_model.reward_manager=$reward_manager \
     trainer.critic_warmup=$critic_warmup \
-    trainer.logger=[$logger] \
+    trainer.logger=$logger \
     trainer.project_name=$project_name \
     trainer.experiment_name=$experiment_name \
     trainer.n_gpus_per_node=$n_gpus_per_node \
