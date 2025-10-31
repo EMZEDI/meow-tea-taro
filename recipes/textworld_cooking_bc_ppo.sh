@@ -201,6 +201,7 @@ python3 -m meow_tea_train.verl.trainer.main_bc_ppo \
     actor_rollout_ref.rollout.val_kwargs.temperature=$val_rollout_temp \
     critic.optim.lr=$critic_lr \
     critic.model.path=$critic_model_path \
+    critic.model.fsdp_config.model_dtype=bfloat16 \
     critic.model.use_remove_padding=True \
     critic.model.enable_gradient_checkpointing=True \
     critic.ppo_micro_batch_size_per_gpu=32 \

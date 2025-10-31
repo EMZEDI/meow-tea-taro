@@ -229,7 +229,7 @@ class FSDPModelMerger(BaseModelMerger):
     def _validate_state_dict(self, state_dict: dict[str, torch.Tensor]):
         auto_model_class = self.get_transformers_auto_model_class()
 
-        hf_model = auto_model_class.from_pretrained(self.config.test_hf_dir, torch_dtype=torch.bfloat16)
+        hf_model = auto_model_class.from_pretrained(self.config.test_hf_dir, dtype=torch.bfloat16)
         hf_state_dict = hf_model.state_dict()
         del hf_model
 

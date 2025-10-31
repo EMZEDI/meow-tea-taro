@@ -375,7 +375,7 @@ class ActorRolloutRefWorker(Worker, DistProfilerExtension):
 
             actor_module = actor_module_class.from_pretrained(
                 pretrained_model_name_or_path=local_path,
-                torch_dtype=torch_dtype,
+                dtype=torch_dtype,
                 config=actor_model_config,
                 trust_remote_code=trust_remote_code,
             )

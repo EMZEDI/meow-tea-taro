@@ -175,6 +175,7 @@ python3 -m meow_tea_train.verl.trainer.main_ppo \
     critic.model.path=$critic_model_path \
     critic.model.use_remove_padding=True \
     critic.model.enable_gradient_checkpointing=True \
+    critic.model.fsdp_config.model_dtype=bfloat16 \
     critic.ppo_micro_batch_size_per_gpu=32 \
     critic.use_dynamic_bsz=True \
     reward_model.reward_manager=$reward_manager \

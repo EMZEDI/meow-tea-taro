@@ -205,7 +205,7 @@ class FSDPEngine(BaseEngine):
 
             module = auto_class.from_pretrained(
                 pretrained_model_name_or_path=self.model_config.local_path,
-                torch_dtype=torch_dtype,
+                dtype=torch_dtype,
                 config=self.model_config.hf_config,
                 trust_remote_code=self.model_config.trust_remote_code,
             )

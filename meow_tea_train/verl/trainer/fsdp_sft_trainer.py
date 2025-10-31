@@ -223,7 +223,7 @@ class FSDPSFTTrainer:
             self.model: PreTrainedModel = AutoModelForCausalLM.from_pretrained(
                 local_model_path,
                 config=config,
-                torch_dtype=torch_dtype,
+                dtype=torch_dtype,
                 attn_implementation="flash_attention_2",
                 trust_remote_code=trust_remote_code,
             )

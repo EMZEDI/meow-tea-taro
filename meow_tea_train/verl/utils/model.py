@@ -620,7 +620,7 @@ def load_valuehead_model(local_path, torch_dtype, model_config, trust_remote_cod
     try:
         model = AutoModelForTokenClassification.from_pretrained(
             pretrained_model_name_or_path=local_path,
-            torch_dtype=torch_dtype,
+            dtype=torch_dtype,
             config=model_config,
             attn_implementation="flash_attention_2",
             trust_remote_code=trust_remote_code,
@@ -642,7 +642,7 @@ def load_valuehead_model(local_path, torch_dtype, model_config, trust_remote_cod
         module_class = AutoModelForCausalLM
     ori_model = module_class.from_pretrained(
         pretrained_model_name_or_path=local_path,
-        torch_dtype=torch_dtype,
+        dtype=torch_dtype,
         config=model_config,
         attn_implementation="flash_attention_2",
         trust_remote_code=trust_remote_code,

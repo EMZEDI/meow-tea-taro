@@ -523,7 +523,7 @@ class MegatronCheckpointManager(BaseCheckpointManager):
                         else:
                             from transformers import AutoModelForCausalLM
 
-                            model = AutoModelForCausalLM.from_pretrained(self.config.model.path, torch_dtype="auto")
+                            model = AutoModelForCausalLM.from_pretrained(self.config.model.path, dtype="auto")
                     model.save_pretrained(hf_model_ckpt_path, state_dict=state_dict)
                     log_with_rank(
                         f"Saved Huggingface config and tokenizer to {hf_model_ckpt_path}",
