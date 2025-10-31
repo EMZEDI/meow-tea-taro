@@ -130,9 +130,10 @@ python3 -m meow_tea_train.verl.trainer.main_ppo \
     data.val_files="$local_parquet_dir/validation.parquet" \
     data.return_raw_chat=True \
     data.max_prompt_length=$max_prompt_length \
+    data.seed=$instance_id_start \
     data.max_response_length=$max_response_length \
     data.train_batch_size=$train_batch_size \
-    data.dataloader_num_workers=4 \
+    data.dataloader_num_workers=16 \
     algorithm.adv_estimator=$adv_estimator \
     algorithm.gamma=$gamma \
     algorithm.use_kl_in_reward=$use_kl_in_reward \
@@ -153,6 +154,10 @@ python3 -m meow_tea_train.verl.trainer.main_ppo \
     actor_rollout_ref.actor.ppo_mini_batch_size=$ppo_mini_batch_size \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=32 \
     actor_rollout_ref.actor.use_dynamic_bsz=True \
+    actor_rollout_ref.actor.use_torch_compile=Flase \
+    actor_rollout_ref.rollout.enforce_eager=True \
+    actor_rollout_ref.model.use_fused_kernels=False \
+    actor_rollout_ref.actor.use_torch_compile=False \
     actor_rollout_ref.actor.entropy_coeff=0.0 \
     actor_rollout_ref.actor.use_kl_loss=$use_kl_loss \
     actor_rollout_ref.actor.optim.lr=$actor_lr \
@@ -179,7 +184,7 @@ python3 -m meow_tea_train.verl.trainer.main_ppo \
     trainer.experiment_name=$experiment_name \
     trainer.validation_data_dir="local/val_results" \
     trainer.nnodes=$nnodes \
-    trainer.n_gpus_per_node=1 \
+    trainer.n_gpus_per_node=4 \
     trainer.val_before_train=True \
     trainer.hf_kwargs.save_hf_repo_id=$save_hf_repo_id \
     trainer.hf_kwargs.resume_wandb_logs=$resume_wandb_logs \

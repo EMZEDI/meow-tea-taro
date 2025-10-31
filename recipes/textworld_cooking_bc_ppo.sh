@@ -66,20 +66,33 @@ critic_warmup=0
 val_before_train=False
 save_freq=1
 
-# CRITIC CONFIG
-critic_lr=5e-6
-critic_update_epochs=1
-
 # LOGGING CONFIG
 project_name="${env_name}_${task_prefix}_${reward_method}_${adv_estimator}" # TODO (optional). WandB project name.
 experiment_name="${env_name}_${task_prefix}_${reward_method}_${adv_estimator}_kl${kl_coef}_actor${actor_lr}_critic${critic_lr}_bs${train_batch_size}_ep${num_epochs}_seed${instance_id_start}" # TODO (optional). WandB experiment name.
 logger="['console','wandb']"
 
 # HARDWARE CONFIG
-nnodes=1
-n_gpus_per_node=1
+nnodes=3
+n_gpus_per_node=4
 colocate_critic_reward=True
 colocate_actor_ref=True
+
+# TRAINING CONFIG
+rollout_temp=0.7
+val_rollout_temp=0.4
+train_batch_size=256
+ppo_mini_batch_size=256
+max_num_batched_tokens=8192
+gpu_memory_utilization=0.65
+max_prompt_length=4096
+max_response_length=4096
+actor_lr=1e-6
+critic_lr=1e-5
+nnodes=1
+num_epochs=100
+save_freq=40 # per steps
+test_freq=5 # per steps
+
 
 # Step 1: Process RL data
 echo "Processing multiturn RL data for tasks ${env_name}-${task_prefix} ${instance_id_start}-${instance_id_end}"
@@ -143,12 +156,13 @@ echo "Starting BC-PPO training..."
 source .venv/bin/activate
 python3 -m meow_tea_train.verl.trainer.main_bc_ppo \
     data.train_files="$local_parquet_dir/train.parquet" \
+    data.seed=$instance_id_start \
     data.val_files="$local_parquet_dir/validation.parquet" \
     data.return_raw_chat=True \
     data.max_prompt_length=$max_prompt_length \
     data.max_response_length=$max_response_length \
     data.train_batch_size=$train_batch_size \
-    data.dataloader_num_workers=4 \
+    data.dataloader_num_workers=16 \
     algorithm.adv_estimator=$adv_estimator \
     algorithm.bias_correction=$bias_correction \
     algorithm.bias_decay=$bias_decay \
@@ -167,7 +181,8 @@ python3 -m meow_tea_train.verl.trainer.main_bc_ppo \
     actor_rollout_ref.model.use_fused_kernels=False \
     actor_rollout_ref.rollout.dtype=bfloat16 \
     actor_rollout_ref.actor.fsdp_config.model_dtype=bfloat16 \
-    actor_rollout_ref.actor.use_torch_compile=True \
+    actor_rollout_ref.actor.use_torch_compile=Flase \
+    actor_rollout_ref.rollout.enforce_eager=True \
     actor_rollout_ref.actor.ppo_mini_batch_size=$ppo_mini_batch_size \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=32 \
     actor_rollout_ref.actor.use_dynamic_bsz=True \
@@ -197,6 +212,8 @@ python3 -m meow_tea_train.verl.trainer.main_bc_ppo \
     trainer.experiment_name=$experiment_name \
     trainer.validation_data_dir="local/val_results" \
     trainer.nnodes=$nnodes \
+    actor_rollout_ref.model.use_fused_kernels=False \
+    actor_rollout_ref.actor.use_torch_compile=False \
     trainer.n_gpus_per_node=$n_gpus_per_node \
     trainer.val_before_train=True \
     trainer.hf_kwargs.save_hf_repo_id=$save_hf_repo_id \

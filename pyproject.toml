@@ -44,6 +44,7 @@ dependencies = [
     "torchdata>=0.11.0",
     "codetiming>=1.4.0",
     "trl>=0.24.0",
+    "flashinfer-cubin>=0.4.1",
 ]
 
 [project.optional-dependencies]
@@ -60,6 +61,7 @@ dev = [
     "ipython>=8.0",
     "jupyterlab>=4.2.0",
     "pre-commit>=3.0",
+    "flashinfer-python @ https://github.com/flashinfer-ai/flashinfer/releases/download/v0.2.5/flashinfer_python-0.2.5+cu124torch2.6-cp38-abi3-linux_x86_64.whl",
     "flash-attn @ https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.3.18/flash_attn-2.7.4+cu124torch2.6-cp310-cp310-linux_x86_64.whl"
 ]
 
